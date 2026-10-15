@@ -91,7 +91,7 @@ export async function downloadAdmissionPdf(
   }
 
   // Clean filename: e.g. FSDQ-Admission-FSDQ-2026-2161.pdf
-  const safeId = (application.trackingId || application.id || 'Receipt').replace(/[^a-zA-Z0-9-_]/g, '_');
+  const safeId = (application.id || 'Receipt').replace(/[^a-zA-Z0-9-_]/g, '_');
   pdf.save(`FSDQ-Admission-${safeId}.pdf`);
 }
 
@@ -149,7 +149,7 @@ export async function printAdmissionReceipt(
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <title>ভর্তি আবেদনপত্র - ${application.trackingId || application.id}</title>
+  <title>ভর্তি আবেদনপত্র - ${application.id}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Hind+Siliguri:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">

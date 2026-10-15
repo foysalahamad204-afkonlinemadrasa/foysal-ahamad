@@ -5,7 +5,10 @@ import {
   ShieldCheck, 
   GraduationCap, 
   AlertCircle,
-  KeyRound
+  KeyRound,
+  Mail,
+  CheckCircle2,
+  ArrowLeft
 } from 'lucide-react';
 import { useAcademy } from '../../context/AcademyContext';
 import { AdmissionApplication } from '../../types';
@@ -26,6 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { adminLogin, findAdmissionById, findAdmissionsByPhone } = useAcademy();
 
   const [activeTab, setActiveTab] = useState<'student' | 'admin'>('student');
+  const [adminView, setAdminView] = useState<'login' | 'forgot' | 'verify_otp' | 'reset_password'>('login');
 
   // Student Login State
   const [studentIdOrPhone, setStudentIdOrPhone] = useState('');
@@ -36,6 +40,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Forgot Password / OTP State
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [newAdminPass, setNewAdminPass] = useState('');
+  const [confirmAdminPass, setConfirmAdminPass] = useState('');
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
 
@@ -90,6 +103,124 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotMessage('');
+
+    const cleanEmail = forgotEmail.trim().toLowerCase();
+    const allowedEmails = [
+      'ahamadfoysal920@gmail.com',
+      'foysalahamad204@gmail.com',
+      'admin@fsdarulquran.com'
+    ];
+
+    if (!allowedEmails.includes(cleanEmail)) {
+      setForgotError('অননুমোদিত বা নিবন্ধিত অ্যাডমিন ইমেইল নয়।');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminView('verify_otp');
+        setForgotMessage(data.message || `আপনার নিবন্ধিত ইমেইলে (${cleanEmail}) সিকিউর ওটিপি পাঠানো হয়েছে।`);
+      } else {
+        setForgotError(data.error || 'ওটিপি পাঠাতে সমস্যা হয়েছে।');
+      }
+    } catch (err) {
+      setForgotError('সার্ভারের সাথে সংযোগ স্থাপন করা যায়নি।');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+
+    const cleanEmail = forgotEmail.trim().toLowerCase();
+    const cleanOtp = enteredOtp.trim();
+
+    if (!cleanOtp) {
+      setForgotError('অনুগ্রহ করে ওটিপি কোডটি লিখুন।');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, otp: cleanOtp }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminView('reset_password');
+        setForgotMessage('ওটিপি সফলভাবে যাচাই হয়েছে। এখন নতুন পাসওয়ার্ড সেট করুন।');
+        setEnteredOtp('');
+      } else {
+        setForgotError(data.error || 'ওটিপি সঠিক নয়।');
+      }
+    } catch (err) {
+      setForgotError('যাচাইকরণে ত্রুটি হয়েছে।');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+
+    if (newAdminPass.trim().length < 6) {
+      setForgotError('নতুন পাসওয়ার্ড ন্যূনতম ৬ অক্ষরের হতে হবে।');
+      return;
+    }
+    if (newAdminPass !== confirmAdminPass) {
+      setForgotError('পাসওয়ার্ড দুটি মিলছে না।');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: forgotEmail.trim().toLowerCase(),
+          otp: enteredOtp.trim(),
+          newPassword: newAdminPass.trim(),
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setForgotMessage('আলহামদুলিল্লাহ! আপনার অ্যাডমিন পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে। এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।');
+        setTimeout(() => {
+          setAdminView('login');
+          setAdminPassword('');
+          setNewAdminPass('');
+          setConfirmAdminPass('');
+          setForgotMessage('');
+          setEnteredOtp('');
+        }, 2000);
+      } else {
+        setForgotError(data.error || 'পাসওয়ার্ড রিসেট করতে সমস্যা হয়েছে।');
+      }
+    } catch (err) {
+      setForgotError('পাসওয়ার্ড রিসেট করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border-2 border-emerald-700 flex flex-col">
@@ -117,31 +248,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-stone-200 bg-stone-50">
-          <button
-            onClick={() => setActiveTab('student')}
-            className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
-              activeTab === 'student'
-                ? 'bg-white text-[#064E3B] border-b-2 border-[#064E3B]'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <GraduationCap className="w-4 h-4" />
-            <span>শিক্ষার্থী পোর্টাল</span>
-          </button>
+        {adminView === 'login' && (
+          <div className="flex border-b border-stone-200 bg-stone-50">
+            <button
+              onClick={() => setActiveTab('student')}
+              className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                activeTab === 'student'
+                  ? 'bg-white text-[#064E3B] border-b-2 border-[#064E3B]'
+                  : 'text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span>শিক্ষার্থী পোর্টাল</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('admin')}
-            className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
-              activeTab === 'admin'
-                ? 'bg-white text-[#064E3B] border-b-2 border-[#064E3B]'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>অ্যাডমিন প্যানেল</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setActiveTab('admin')}
+              className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                activeTab === 'admin'
+                  ? 'bg-white text-[#064E3B] border-b-2 border-[#064E3B]'
+                  : 'text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>অ্যাডমিন প্যানেল</span>
+            </button>
+          </div>
+        )}
 
         {/* Form Body */}
         <div className="p-6">
@@ -182,58 +315,234 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </form>
           ) : (
-            /* Admin Login Form */
-            <form onSubmit={handleAdminLogin} className="space-y-4">
-              <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-xs text-amber-900">
-                <strong>নির্ধারিত অ্যাডমিন ইমেইল:</strong>
-                <div className="font-mono text-[11px] mt-0.5 font-bold">ahamadfoysal920@gmail.com</div>
-              </div>
+            /* Admin Views */
+            <div>
+              {adminView === 'login' && (
+                <form onSubmit={handleAdminLogin} className="space-y-4">
+                  <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-xs text-amber-900">
+                    <strong>নির্ধারিত অ্যাডমিন ইমেইল:</strong>
+                    <div className="font-mono text-[11px] mt-0.5 font-bold">ahamadfoysal920@gmail.com</div>
+                  </div>
 
-              {adminError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{adminError}</span>
-                </div>
+                  {adminError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{adminError}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      অ্যাডমিন ইমেইল
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={adminEmailInput}
+                      onChange={(e) => setAdminEmailInput(e.target.value)}
+                      placeholder="ahamadfoysal920@gmail.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-stone-700">
+                        পাসওয়ার্ড
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminView('forgot');
+                          setForgotError('');
+                          setForgotMessage('');
+                          setForgotEmail(adminEmailInput);
+                        }}
+                        className="text-xs text-emerald-800 hover:underline font-semibold cursor-pointer"
+                      >
+                        পাসওয়ার্ড ভুলে গেছেন?
+                      </button>
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="আপনার পাসওয়ার্ড লিখুন"
+                      autoComplete="current-password"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-800 to-[#064E3B] hover:from-emerald-900 hover:to-[#043B2C] text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    <KeyRound className="w-4 h-4 text-amber-300" />
+                    <span>{isLoggingIn ? 'যাচাই করা হচ্ছে...' : 'অ্যাডমিন ড্যাশবোর্ডে প্রবেশ করুন'}</span>
+                  </button>
+                </form>
               )}
 
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  অ্যাডমিন ইমেইল
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={adminEmailInput}
-                  onChange={(e) => setAdminEmailInput(e.target.value)}
-                  placeholder="ahamadfoysal920@gmail.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                />
-              </div>
+              {adminView === 'forgot' && (
+                <form onSubmit={handleSendOtp} className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setAdminView('login')}
+                      className="text-stone-500 hover:text-stone-800 p-1 rounded-lg cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <h4 className="font-bold text-sm text-[#064E3B]">অ্যাডমিন পাসওয়ার্ড উদ্ধার (OTP)</h4>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  পাসওয়ার্ড
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="আপনার পাসওয়ার্ড লিখুন"
-                  autoComplete="current-password"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                />
-              </div>
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    আপনার অনুমোদিত অ্যাডমিন ইমেইল ঠিকানা দিন। অ্যাকাডেমির নিরাপত্তা নিশ্চিত করতে আপনার ইমেইলে একটি সিকিউর OTP পাঠানো হবে।
+                  </p>
 
-              <button
-                type="submit"
-                disabled={isLoggingIn}
-                className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-800 to-[#064E3B] hover:from-emerald-900 hover:to-[#043B2C] text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                <KeyRound className="w-4 h-4 text-amber-300" />
-                <span>{isLoggingIn ? 'যাচাই করা হচ্ছে...' : 'অ্যাডমিন ড্যাশবোর্ডে প্রবেশ করুন'}</span>
-              </button>
-            </form>
+                  {forgotError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{forgotError}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      নিবন্ধিত অ্যাডমিন ইমেইল
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="ahamadfoysal920@gmail.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isProcessing}
+                    className="w-full py-3 rounded-xl font-bold text-white bg-[#064E3B] hover:bg-[#043B2C] text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    <Mail className="w-4 h-4 text-amber-300" />
+                    <span>{isProcessing ? 'ওটিপি পাঠানো হচ্ছে...' : 'সিকিউর ওটিপি (OTP) পাঠান'}</span>
+                  </button>
+                </form>
+              )}
+
+              {adminView === 'verify_otp' && (
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setAdminView('forgot')}
+                      className="text-stone-500 hover:text-stone-800 p-1 rounded-lg cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <h4 className="font-bold text-sm text-[#064E3B]">ইমেইল ওটিপি (OTP) যাচাই করুন</h4>
+                  </div>
+
+                  {forgotMessage && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg text-xs text-emerald-900 leading-relaxed">
+                      {forgotMessage}
+                    </div>
+                  )}
+
+                  {forgotError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{forgotError}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      ৬-সংখ্যার ওটিপি (OTP Code) দিন
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={enteredOtp}
+                      onChange={(e) => setEnteredOtp(e.target.value)}
+                      placeholder="123456"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-center font-mono tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl font-bold text-white bg-[#064E3B] hover:bg-[#043B2C] text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                    <span>ওটিপি যাচাই করুন</span>
+                  </button>
+                </form>
+              )}
+
+              {adminView === 'reset_password' && (
+                <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h4 className="font-bold text-sm text-[#064E3B]">নতুন পাসওয়ার্ড সেট করুন</h4>
+                  </div>
+
+                  {forgotMessage && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg text-xs text-emerald-900 leading-relaxed">
+                      {forgotMessage}
+                    </div>
+                  )}
+
+                  {forgotError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{forgotError}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      নতুন পাসওয়ার্ড (ন্যূনতম ৬ অক্ষর)
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={newAdminPass}
+                      onChange={(e) => setNewAdminPass(e.target.value)}
+                      placeholder="নতুন পাসওয়ার্ড দিন"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      নতুন পাসওয়ার্ড নিশ্চিত করুন
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={confirmAdminPass}
+                      onChange={(e) => setConfirmAdminPass(e.target.value)}
+                      placeholder="পুনরায় নতুন পাসওয়ার্ড দিন"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isProcessing}
+                    className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-800 to-[#064E3B] hover:from-emerald-900 hover:to-[#043B2C] text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    <KeyRound className="w-4 h-4 text-amber-300" />
+                    <span>{isProcessing ? 'সংরক্ষণ হচ্ছে...' : 'নতুন পাসওয়ার্ড সংরক্ষণ করুন'}</span>
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       </div>
