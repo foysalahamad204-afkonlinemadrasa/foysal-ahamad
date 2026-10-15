@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Screen styles for printable portal - hidden by default on screen */
+#printable-receipt-portal {
+  display: none;
+}
+
+/* Dedicated Print Stylesheet for Browser Print (Ctrl+P / window.print) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 12mm;
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-family: 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif !important;
+    -webkit-font-smoothing: antialiased !important;
+  }
+
+  /* Hide the rest of the application so only the receipt is printed */
+  #root,
+  .no-print,
+  nav,
+  footer,
+  header {
+    display: none !important;
+  }
+
+  /* Show only the printable receipt portal in normal document flow */
+  #printable-receipt-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 780px !important;
+    margin: 0 auto !important;
+    padding: 10px !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  #printable-receipt-portal * {
+    visibility: visible !important;
+  }
+}

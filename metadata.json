@@ -1,0 +1,6 @@
+{
+  "name": "FS Darul Quran Online Academy",
+  "description": "Quran | Sunnah | Better Ummah — FS Darul Quran Online Academy একটি আধুনিক ও বিশ্বস্ত অনলাইন ইসলামিক শিক্ষা প্রতিষ্ঠান। নূরানি, নাজেরা, হিফজ, সহিহ কুরআন ও তাজবিদ শিক্ষার বিশ্বস্ত একাডেমি।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
